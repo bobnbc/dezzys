@@ -329,10 +329,11 @@ blockquote {
 
 /*  Postscript & Footer Regions
 -------------------------------------------------------------- */
+/*/
 .postscript-top-inner .block {
   width: 33%;
 }
-
+*/
 .postscript-bottom {
   padding: 20px 0 0 0;
 }
