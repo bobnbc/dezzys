@@ -1931,7 +1931,7 @@ function field_ui_field_edit_form($form, &$form_state, $instance) {
   $form['field']['cardinality'] = array(
     '#type' => 'select',
     '#title' => t('Number of values'),
-    '#options' => array(FIELD_CARDINALITY_UNLIMITED => t('Unlimited')) + drupal_map_assoc(range(1, 10)),
+    '#options' => array(FIELD_CARDINALITY_UNLIMITED => t('Unlimited')) + drupal_map_assoc(range(1, 20)),
     '#default_value' => $field['cardinality'],
     '#description' => $description,
   );
