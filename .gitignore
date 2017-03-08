@@ -1,5 +1,3 @@
-# Ignore paths that contain user-generated content.
-docroot/files
-docroot/sites/*/files
-docroot/sites/*/private
+# Ignore configuration files that may contain sensitive information.
 
+.DS_Store
