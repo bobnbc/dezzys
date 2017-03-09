@@ -276,7 +276,30 @@ else
 }
 
 */
-$databases = array();
+if (isset($_ENV['AH_SITE_ENVIRONMENT'])) {
+
+	$databases = array();
+
+}else{
+
+	$databases = array (
+	  'default' => 
+	  array (
+	    'default' => 
+	    array (
+	      'database' => 'dezzysfootwear',
+	      'username' => 'root',
+	      'password' => 'root',
+	      'host' => 'localhost',
+	      'port' => '',
+	      'driver' => 'mysql',
+	      'prefix' => '',
+	    ),
+	  ),
+	);
+
+}
+
 /**
  * Access control for update.php script.
  *
@@ -666,12 +689,17 @@ $conf['404_fast_html'] = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
 // settings.php for development on your local workstation, set $db_url
 // (Drupal 5 or 6) or $databases (Drupal 7 or 8) as described in comments above.
 
-if (file_exists('/var/www/site-php')) {
-  require('/var/www/site-php/dezzysfootwear/dezzysfootwear-settings.inc');
+if (isset($_ENV['AH_SITE_ENVIRONMENT'])) {
+
+	if (file_exists('/var/www/site-php')) {
+	  require('/var/www/site-php/dezzysfootwear/dezzysfootwear-settings.inc');
+	}
+
 }
 
+
 echo "<pre>";
-print_r($GLOBALS)
+print_r($GLOBALS);
 echo "</pre>";
 
 print_r($_ENV);
