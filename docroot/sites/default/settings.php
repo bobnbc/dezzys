@@ -287,7 +287,7 @@ if (isset($_ENV['AH_SITE_ENVIRONMENT'])) {
 	  array (
 	    'default' => 
 	    array (
-	      'database' => 'dezzysfootwear',
+	      'database' => 'dezzys',
 	      'username' => 'root',
 	      'password' => 'root',
 	      'host' => 'localhost',
