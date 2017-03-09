@@ -696,13 +696,3 @@ if (isset($_ENV['AH_SITE_ENVIRONMENT'])) {
 	}
 
 }
-/*
-//debugging super vars
-echo "<pre>";
-print_r($GLOBALS);
-echo "</pre>";
-
-echo "<pre>";
-print_r($_ENV);
-echo "</pre>";
-*/
