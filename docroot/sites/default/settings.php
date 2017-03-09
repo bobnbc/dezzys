@@ -670,5 +670,8 @@ if (file_exists('/var/www/site-php')) {
   require('/var/www/site-php/dezzysfootwear/dezzysfootwear-settings.inc');
 }
 
-print_r($_ENV);
+echo "<pre>";
+print_r($GLOBALS)
+echo "</pre>";
 
+print_r($_ENV);
