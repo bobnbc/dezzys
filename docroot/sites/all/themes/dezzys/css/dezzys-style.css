@@ -657,6 +657,21 @@ ul.links li {
   float: left;
 }
 
+.marketplace img{
+  max-width: 100%;
+  height: auto;
+}
+
+.collections {
+  width: 50%;
+  float: left;
+}
+
+.collections img{
+  max-width: 100%;
+  height: auto;
+}
+
 /* Breadcrumbs
 /-------------------------------------------------------------- */
 .breadcrumbs .inner {
