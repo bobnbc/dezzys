@@ -652,6 +652,10 @@ ul.links li {
   padding: 0;
 }
 
+.marketplace {
+  width: 25%;
+  float: left;
+}
 
 /* Breadcrumbs
 /-------------------------------------------------------------- */
