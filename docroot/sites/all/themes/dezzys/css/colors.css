@@ -196,6 +196,10 @@ blockquote {
   text-transform: uppercase;
 }
 
+div#block-menu-menu-world-of-dezzys {
+    font: bold 12px/20px Georgia,serif;
+}
+
 .main-menu-wrapper {
   background: #ffffff;
 /*
