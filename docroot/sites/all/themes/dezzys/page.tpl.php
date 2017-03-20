@@ -79,12 +79,13 @@
             <?php if ($logo || $site_name || $site_slogan): ?>
             <div id="header-site-info" class="header-site-info">
               <div id="header-site-info-inner" class="header-site-info-inner gutter">
+
+                
                 <?php if ($logo): ?>
                 <div id="logo">
                   <a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" /></a>
-
-
-                <?php print render($page['main_menu']); ?> <!-- /moved main-menu from above preface_top to here -->
+                  <?php print render($page['main_menu']); ?> <!-- /moved main-menu from above preface_top to here -->
+                  <a href="/cart"><img src="sites/all/themes/dezzys/images/shopcart.png" width="50" height="50" style="float:right;margin-right:40px;margin-top:-70px"></a>
 
 
                 </div>
