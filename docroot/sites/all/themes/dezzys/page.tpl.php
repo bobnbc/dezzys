@@ -85,7 +85,7 @@
                 <div id="logo">
                   <a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" /></a>
                   <?php print render($page['main_menu']); ?> <!-- /moved main-menu from above preface_top to here -->
-                  <a href="/cart"><img src="sites/all/themes/dezzys/images/shopcart.png" width="50" height="50" style="float:right;margin-right:40px;margin-top:-70px"></a>
+                  <a href="/cart"><img src="../sites/all/themes/dezzys/images/shopcart.png" width="50" height="50" style="float:right;margin-right:40px;margin-top:-70px"></a>
 
 
                 </div>
