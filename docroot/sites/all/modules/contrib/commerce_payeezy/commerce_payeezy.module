@@ -1,0 +1,516 @@
+<?php
+
+/**
+ * @file
+ * This module provides Payeezy (http://developer.payeezy.com/) payment gateway integration
+ * to Commerce.
+ */
+
+define('PAYEEZY_TRANSACTION_STATUS_SUCCESS', 'approved');
+
+/**
+ * Implements hook_menu().
+ */
+function commerce_payeezy_menu() {
+  $items = array();
+
+  // Add a menu item to payeezy payment transactions that can be refunded.
+  $items['admin/commerce/orders/%commerce_order/payment/%commerce_payment_transaction/commerce-payeezy-refund'] = array(
+    'title' => 'Refund',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_payeezy_refund_form', 3, 5),
+    'access callback' => 'commerce_payeezy_return_access',
+    'access arguments' => array(3, 5),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'context' => MENU_CONTEXT_INLINE,
+    'weight' => 1,
+    'file' => 'includes/commerce_payeezy.admin.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_libraries_info().
+ */
+function commerce_payeezy_libraries_info() {
+  return array(
+    'payeezy-php' => array(
+      'name' => 'Payeezy API Client Library for PHP',
+      'vendor url' => 'https://payeezy.com/',
+      'download url' => 'https://github.com/payeezy/payeezy-php',
+      'dependencies' => array(),
+      'version arguments' => array(
+        'file' => 'VERSION',
+        'pattern' => '/(\d+\.\d+\.\d+)/',
+      ),
+      'files' => array(
+        'php' => array(
+          'vendor/autoload.php',
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_commerce_payment_method_info().
+ */
+function commerce_payeezy_commerce_payment_method_info() {
+  $payment_methods = array();
+
+  $payment_method_rule = rules_config_load('commerce_payment_commerce_payeezy');
+  if ($payment_method_rule && $payment_method_rule->active) {
+    foreach ($payment_method_rule->actions() as $action) {
+      // Skip any actions that are not simple rules actions. (i.e. loops)
+      if (!($action instanceof RulesAction)) {
+        continue;
+      }
+    }
+  }
+
+  $payment_methods['commerce_payeezy'] = array(
+    'title' => t('Payeezy'),
+    'short_title' => t('Payeezy'),
+    'display_title' => t($action->settings['payment_method']['settings']['display_title']),
+    'description' => t('Payeezy payment gateway'),
+    'active' => FALSE,
+    'terminal' => FALSE,
+    'offsite' => FALSE,
+  );
+
+  //TODO: cardonfile support.
+
+  return $payment_methods;
+}
+
+/**
+ * Access callback for processing returns.
+ */
+function commerce_payeezy_return_access($order, $transaction) {
+  // Don't allow refunds on non-payeezy transactions.
+  if ($transaction->payment_method != 'commerce_payeezy') {
+    return FALSE;
+  }
+
+  // Only allow refunds on original charge transactions.
+  if (!empty($transaction->data['payeezy']['payeezy_refund'])) {
+    return FALSE;
+  }
+
+  return commerce_payment_transaction_access('update', $transaction);
+}
+
+/**
+ * Payment method settings form.
+ *
+ * @param $settings
+ *   Default settings provided from rules
+ *
+ * @return array
+ *   Settings form array
+ */
+function commerce_payeezy_settings_form($settings) {
+  $form = array();
+  $form['payeezy_currency'] = array(
+    '#type' => 'select',
+    '#title' => t('Currency'),
+    '#options' => array(
+      'CAD' => t('CAD'),
+      'EUR' => t('EUR'),
+      'GBP' => t('GBP'),
+      'USD' => t('USD'),
+      'AUD' => t('AUD'),
+      'CHF' => t('CHF'),
+    ),
+    '#description' => t('Select the currency that you are using.'),
+    '#default_value' => !empty($settings['payeezy_currency']) ? $settings['payeezy_currency'] : 'USD',
+  );
+  $form['payeezy_cards'] = array(
+      '#type' => 'select',
+      '#title' => t('Supported Cards'),
+      '#multiple' => TRUE,
+      '#options' => array(
+          'visa' => t('visa'),
+          'mastercard' => t('mastercard'),
+          'amex' => t('American Express'),
+          'discover' => t('discover'),
+      ),
+      '#description' => t('Select the Cards that you support.'),
+      '#default_value' => !empty($settings['payeezy_cards']) ? $settings['payeezy_cards'] : array('visa', 'mastercard', 'amex', 'discover'),
+  );
+  $form['api_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('API Key'),
+    '#description' => t('API Key. Get your key from https://developer.payeezy.com/'),
+    '#default_value' => !empty($settings['api_key']) ? $settings['api_key'] : '',
+    '#required' => TRUE,
+  );
+  $form['api_secret'] = array(
+    '#type' => 'textfield',
+    '#title' => t('API Secret'),
+    '#description' => t('API Secret. Get your key from https://developer.payeezy.com/'),
+    '#default_value' => !empty($settings['api_secret']) ? $settings['api_secret'] : '',
+    '#required' => TRUE,
+  );
+  $form['merchant_token'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Merchant Token'),
+      '#description' => t('Merchant Token. Get your token from https://developer.payeezy.com/'),
+      '#default_value' => !empty($settings['merchant_token']) ? $settings['merchant_token'] : '',
+      '#required' => TRUE,
+  );
+  $form['transaction_url'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Transaction URL'),
+      '#description' => t('Transaction URL. Usually https://api-cert.payeezy.com/v1/transactions for Sandbox & https://api.payeezy.com/v1/transactions for Production.'),
+      '#default_value' => !empty($settings['transaction_url']) ? $settings['transaction_url'] : 'https://api-cert.payeezy.com/v1/transactions',
+      '#required' => TRUE,
+  );
+  $form['display_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Payment method display title'),
+    '#description' => t('Payment method display title'),
+    '#default_value' => !empty($settings['display_title']) ? $settings['display_title'] : t('Payeezy'),
+  );
+
+  return $form;
+}
+
+function _commerce_payeezy_credit_card_form($payment_method) {
+  module_load_include('inc', 'commerce_payment', 'includes/commerce_payment.credit_card');
+
+  $payeezy_cards = (isset($payment_method['settings']['payeezy_cards']) ? $payment_method['settings']['payeezy_cards'] : array('visa', 'mastercard', 'amex', 'discover'));
+  $credit_card_fields = array(
+    'type' => $payeezy_cards,
+    'owner' => '',
+    'number' => '',
+    'exp_month' => '',
+    'exp_year' => '',
+    'code' => '',
+  );
+
+  $form = commerce_payment_credit_card_form($credit_card_fields);
+
+  return $form;
+}
+
+/**
+ * Payment method callback: checkout form.
+ */
+function commerce_payeezy_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
+  global $user;
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $field = field_info_field('commerce_customer_address');
+  $instance = field_info_instance('commerce_customer_profile', 'commerce_customer_address', 'billing');
+
+  $available_countries = NULL;
+  if (isset($form_state['input']['country'])) {
+    $available_countries = array($form_state['input']['country'] => NULL);
+  }
+
+  // Attempt to load the billing address from the order data.
+  $billing_address = addressfield_default_values($field, $instance, array($available_countries));
+  if (!empty($order->commerce_customer_billing)) {
+    if (!empty($order_wrapper->commerce_customer_billing->commerce_customer_address)) {
+      $billing_address = $order_wrapper->commerce_customer_billing->commerce_customer_address->value();
+    }
+  }
+
+  // Pass the billing address values to javacript so they can be included in
+  // the token request to Payeezy.
+  $address = array(
+    'address_line1' => !empty($billing_address['thoroughfare']) ? $billing_address['thoroughfare'] : '',
+    'address_line2' => !empty($billing_address['premise']) ? $billing_address['premise'] : '',
+    'address_city' => !empty($billing_address['locality']) ? $billing_address['locality'] : '',
+    'address_state' => !empty($billing_address['administrative_area']) ? $billing_address['administrative_area'] : '',
+    'address_zip' => !empty($billing_address['postal_code']) ? $billing_address['postal_code'] : '',
+    'address_country' => !empty($billing_address['country']) ? $billing_address['country'] : '',
+  );
+  drupal_add_js(array('commerce_payeezy_address' => $address), array('type' => 'setting'));
+
+  $form = _commerce_payeezy_credit_card_form($payment_method);
+
+  // To display validation errors.
+  $form['errors'] = array(
+    '#type' => 'markup',
+    '#markup' => '<div class="payment-errors"></div>',
+  );
+
+  return $form;
+}
+
+/**
+ * Payment method callback: checkout form submission.
+ */
+function commerce_payeezy_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
+  // The card is new. charge and forget.
+  if (!commerce_payeezy_load_library()) {
+    drupal_set_message(t('Error making the payment. Please contact shop admin to proceed.'), 'error');
+    return FALSE;
+  }
+
+  // Begin assembling charge parameters.
+  $client = new Payeezy_Client();
+  $client->setApiKey($payment_method['settings']['api_key']);
+  $client->setApiSecret($payment_method['settings']['api_secret']);
+  $client->setMerchantToken($payment_method['settings']['merchant_token']);
+  $client->setUrl($payment_method['settings']['transaction_url']);
+
+  // Build a default description and offer modules the possibility to alter it.
+  $description = t('Order Number: @order_number', array('@order_number' => $order->order_number));
+
+  $currency_code = $payment_method['settings']['payeezy_currency'];
+  if(isset($charge['currency_code'])){
+    $currency_code = $charge['currency_code'];
+  }
+
+  // Specify that we want to send a receipt email if we are configured to do so.
+  if (!empty($payment_method['settings']['receipt_email'])) {
+    $c['receipt_email'] = $order->mail;
+  }
+
+  // The metadata could be added via the alter below but for compatibility
+  // reasons it may stay.
+  commerce_payeezy_add_metadata($c, $order);
+
+  // Let modules alter the charge object to add attributes.
+  drupal_alter('commerce_payeezy_order_charge', $c, $order);
+
+  $transaction = commerce_payment_transaction_new('commerce_payeezy', $order->order_id);
+  $transaction->instance_id = $payment_method['instance_id'];
+  $transaction->amount = $charge['amount'];
+  $transaction->currency_code = $currency_code;
+
+  /*
+  * save the transaction as pending. this will cause an exception to be thrown
+  * if the transaction cannot be saved. this prevents the scenario where it
+  * can go all the way through the try/catch below with success in payeezy but
+  * failing to ever save the transaction. saving the transaction here also acts as
+  * an early catch to prevent the payeezy charge from going through if the Drupal
+  * side will be unable to save it for some reason.
+  */
+  $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+  if (!_commerce_payeezy_commerce_payment_transaction_save($transaction)) {
+    return FALSE;
+  }
+
+  try {
+    // Payeezy does not appreciate $0 transfers.
+    if ($charge['amount'] > 0) {
+      $card_transaction = new Payeezy_CreditCard($client);
+      $exp_date = $pane_values['credit_card']['exp_month'].substr($pane_values['credit_card']['exp_year'], -2);
+      $response = $card_transaction->purchase(array(
+        "merchant_ref" => $description,
+        "amount" => $charge['amount'],
+        "currency_code" => $currency_code,
+        "credit_card" => array(
+          "type" => _commerce_payeezy_commerce_card_to_payeezy_card_type($pane_values['credit_card']['type']),
+          "cardholder_name" => $pane_values['credit_card']['owner'],
+          "card_number" => $pane_values['credit_card']['number'],
+          "exp_date" => $exp_date,
+          "cvv" => $pane_values['credit_card']['code']
+        )
+      ));
+
+      $transaction->remote_id = $response->correlation_id;
+      $transaction->payload[REQUEST_TIME] = json_encode($response);
+      if($response->transaction_status == PAYEEZY_TRANSACTION_STATUS_SUCCESS){
+        $transaction->message = t('Payment completed successfully.');
+        $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+      }else{
+        $transaction->message = t('Payment processing failed.');
+        $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
+      }
+
+      _commerce_payeezy_commerce_payment_transaction_save($transaction);
+
+      if (property_exists($response, 'card')) {
+        $card_response = $response->card;
+      }
+      else {
+        $card_response = $response->source;
+      }
+    }
+    // If the total is $0 we just put the card on file.
+    else {
+      $card_response = $card;
+    }
+  }
+  catch (Exception $e) {
+    drupal_set_message(t('We received the following error processing your card. Please enter your information again or try a different card.'), 'error');
+    drupal_set_message(check_plain($e->getMessage()), 'error');
+    watchdog('commerce_payeezy', 'Following error received when processing card @payeezy_error.', array('@payeezy_error' => $e->getMessage()), WATCHDOG_NOTICE);
+    $transaction->remote_id = $e->getHttpStatus();
+    $transaction->payload[REQUEST_TIME] = $e->jsonBody;
+    $transaction->message = t('Card processing error: @payeezy_error', array('@payeezy_error' => $e->getMessage()));
+    $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
+    _commerce_payeezy_commerce_payment_transaction_save($transaction);
+    return FALSE;
+  }
+}
+
+function _commerce_payeezy_commerce_card_to_payeezy_card_type($card_type) {
+  $cards = array(
+      "amex" => "american express",
+  );
+  return (isset($cards[$card_type]) ? $cards[$card_type] : $card_type);
+}
+
+/**
+ * attempt to save the transaction and set messages if unsuccessful
+ */
+function _commerce_payeezy_commerce_payment_transaction_save($transaction) {
+  if (!commerce_payment_transaction_save($transaction)) {
+    drupal_set_message(t('Our site is currently unable to process your card. Please contact the site administrator to complete your transaction'), 'error');
+    watchdog('commerce_payeezy', 'commerce_payment_transaction_save returned false in saving a payeezy transaction for order_id @order_id.', array('@order_id' => $transaction->order_id), WATCHDOG_ERROR);
+    return FALSE;
+  }
+  else {
+    return TRUE;
+  }
+}
+
+/**
+ * Implements hook_commerce_payment_method_info_alter().
+ *
+ * Displays a warning if Payeezy private and public keys are not set and the
+ * user has permission to administer payment methods.
+ */
+function commerce_payeezy_commerce_payment_method_info_alter(&$payment_methods) {
+  if (isset($payment_methods['commerce_payeezy'])) {
+    // Just return if they don't have permission to see these errors.
+    if (!user_access('administer payment methods')) {
+      return;
+    }
+    $found_errors = FALSE;
+    $settings = _commerce_payeezy_load_settings();
+    // If secret_key or public_key is not set.
+    if (empty($settings['api_key']) || empty($settings['api_secret']) || empty($settings['merchant_token'])) {
+        $found_errors = TRUE;
+        drupal_set_message(t('Payeezy secret and public key are required in order to use Payeezy payment method. See README.txt for instructions.'), 'warning');
+    }
+
+    // If they need to configure anything, be nice and give them the link.
+    if ($found_errors) {
+      $link = l(t('configured here'), 'admin/commerce/config/payment-methods');
+      drupal_set_message(t('Settings required for the Payeezy payment method can be !link.', array('!link' => $link)), 'warning');
+    }
+
+  }
+}
+
+function _commerce_payeezy_load_settings($name = NULL) {
+  static $settings = array();
+
+  if (!empty($settings)) {
+    return $settings;
+  }
+
+  if (commerce_payment_method_load('commerce_payeezy') && rules_config_load('commerce_payment_commerce_payeezy')) {
+    $commerce_payeezy_payment_method = commerce_payment_method_instance_load('commerce_payeezy|commerce_payment_commerce_payeezy');
+  }
+
+  if (isset($name) && rules_config_load('commerce_payment_commerce_payeezy')) {
+    $commerce_payeezy_payment_method = commerce_payment_method_instance_load('commerce_payeezy|commerce_payment_commerce_payeezy');
+  }
+
+  if (isset($commerce_payeezy_payment_method)) {
+    $settings = $commerce_payeezy_payment_method['settings'];
+  }
+
+  return $settings;
+}
+
+function _commerce_payeezy_load_setting($name, $default_value = NULL) {
+  $settings = _commerce_payeezy_load_settings($name);
+  return isset($settings[$name]) ? $settings[$name] : $default_value;
+}
+
+/**
+ * Brings the payeezy php client library into scope
+ */
+function commerce_payeezy_load_library() {
+  $library = libraries_load('payeezy-php');
+  if (!$library || empty($library['loaded'])) {
+    watchdog('commerce_payeezy', 'Failure to load Payeezy API PHP Client Library.', array(), WATCHDOG_CRITICAL);
+    return FALSE;
+  }
+  else {
+    return TRUE;
+  }
+}
+
+/**
+ * Implements hook_field_widget_WIDGET_TYPE_form_alter() for addressfield.
+ *
+ * Set unique classes on billing address fields so that commerce_payeezy.js can find them.
+ *
+ * @param $element
+ * @param $form_state
+ * @param $context
+ */
+function commerce_payeezy_field_widget_addressfield_standard_form_alter(&$element, &$form_state, $context) {
+  if ($context['field']['field_name'] === 'commerce_customer_address' && $context['instance']['bundle'] === 'billing') {
+    commerce_payeezy_set_addressfield_class_names($element);
+  }
+}
+
+/**
+ * Sets unique class names on address field form elements so that they can be
+ * picked up by commerce_payeezy.js.
+ *
+ * @param $element
+ *   the addressfield form element
+ */
+function commerce_payeezy_set_addressfield_class_names(&$element) {
+  if (isset($element['street_block']['thoroughfare'])) {
+    $element['street_block']['thoroughfare']['#attributes']['class'][] = 'commerce-payeezy-thoroughfare';
+  }
+  if (isset($element['street_block']['premise'])) {
+    $element['street_block']['premise']['#attributes']['class'][] = 'commerce-payeezy-premise';
+  }
+  if (isset($element['locality_block']['locality'])) {
+    $element['locality_block']['locality']['#attributes']['class'][] = 'commerce-payeezy-locality';
+  }
+  if (isset($element['locality_block']['administrative_area'])) {
+    $element['locality_block']['administrative_area']['#attributes']['class'][] = 'commerce-payeezy-administrative-area';
+  }
+  if (isset($element['locality_block']['postal_code'])) {
+    $element['locality_block']['postal_code']['#attributes']['class'][] = 'commerce-payeezy-postal-code';
+  }
+  if (isset($element['country'])) {
+    $element['country']['#attributes']['class'][] = 'commerce-payeezy-country';
+  }
+}
+
+/**
+ * Adds a metadata key to an existing information array.
+ *
+ * By default nothing is added here. Third party modules can implement
+ * hook_commerce_payeezy_metadata(), documented in commerce_payeezy.api.php, to add
+ * metadata. Metadata is useful to pass arbitrary information to Payeezy, such as the
+ * order number, information about the items in the cart, etc.
+ *
+ * @param &$c
+ *   An associative array, to which [metadata] => array(...) will be added, in case
+ *   modules define information via the hook_commerce_payeezy_metadata() hook.
+ * @param $order
+ *   The commerce order object.
+ */
+function commerce_payeezy_add_metadata(&$c, $order) {
+  $metadata = module_invoke_all('commerce_payeezy_metadata', $order);
+  if (count($metadata)) {
+    $c['metadata'] = $metadata;
+  }
+}
+
+/**
+ * Implement hook_commerce_payeezy_metadata and add our defaults.
+ */
+function commerce_payeezy_commerce_payeezy_metadata($order) {
+  return array(
+    'order_id' => $order->order_id,
+    'order_number' => $order->order_number,
+    'uid' => $order->uid,
+  );
+}
