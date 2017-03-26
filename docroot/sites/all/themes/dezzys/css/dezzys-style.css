@@ -676,6 +676,16 @@ ul.links li {
   height: auto;
 }
 
+.shop {
+  width: 33%;
+  float: left;
+}
+
+.shop img{
+  max-width: 100%;
+  height: auto;
+}
+
 .collections {
   width: 50%;
   float: left;
