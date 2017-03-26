@@ -362,7 +362,7 @@ blockquote {
   }
 }
 
-@media (min-width: 767px) {
+@media (min-width: 769px) {
   #block-system-main-menu {
     margin: -35px 0px 0px 245px;
   }
