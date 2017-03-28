@@ -1,0 +1,5 @@
+name = Commerce Sort Shipping by Price
+description = Sorts shipping by price.
+package = Commerce (contrib)
+dependencies[] = commerce
+core = 7.x
