@@ -89,7 +89,7 @@ function commerce_payment_credit_card_form($fields = array(), $default = array()
   // Always add a field for the credit card number.
   $form['credit_card']['number'] = array(
     '#type' => 'textfield',
-    '#title' => t('Card number'),
+    '#title' => t('Card number: Use only digits / Do NOT use dashes or spaces. For example, 1111222233334444'),
     '#default_value' => $default['number'],
     '#attributes' => array('autocomplete' => 'off'),
     '#required' => TRUE,
